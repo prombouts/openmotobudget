@@ -1,0 +1,31 @@
+name: Validate Bicep
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/bicep.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/**'
+      - '.github/workflows/bicep.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build Bicep templates
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az bicep build --file infra/main.bicep --outfile "$RUNNER_TEMP/main.json"
+            az bicep build --file infra/static-web-app.bicep --outfile "$RUNNER_TEMP/static-web-app.json"

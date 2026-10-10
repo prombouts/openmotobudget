@@ -1,0 +1,67 @@
+{
+  "agents": {
+    "Lead": {
+      "persistent_name": "Lead",
+      "universe": "descriptive",
+      "created_at": "2026-09-29T11:52:59.705+02:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "Frontend": {
+      "persistent_name": "Frontend",
+      "universe": "descriptive",
+      "created_at": "2026-09-29T11:52:59.705+02:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "Backend": {
+      "persistent_name": "Backend",
+      "universe": "descriptive",
+      "created_at": "2026-09-29T11:52:59.705+02:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "Data": {
+      "persistent_name": "Data",
+      "universe": "descriptive",
+      "created_at": "2026-09-29T11:52:59.705+02:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "Tester": {
+      "persistent_name": "Tester",
+      "universe": "descriptive",
+      "created_at": "2026-09-29T11:52:59.705+02:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "Scribe": {
+      "persistent_name": "Scribe",
+      "universe": "descriptive",
+      "created_at": "2026-09-29T11:52:59.705+02:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "Ralph": {
+      "persistent_name": "Ralph",
+      "universe": "descriptive",
+      "created_at": "2026-09-29T11:52:59.705+02:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "Rai": {
+      "persistent_name": "Rai",
+      "universe": "descriptive",
+      "created_at": "2026-09-29T11:52:59.705+02:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "Fact Checker": {
+      "persistent_name": "Fact Checker",
+      "universe": "descriptive",
+      "created_at": "2026-09-29T11:52:59.705+02:00",
+      "legacy_named": false,
+      "status": "active"
+    }
+  }
+}

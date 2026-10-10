@@ -1,0 +1,61 @@
+name: Deploy Azure infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_group_name:
+        description: Azure resource group name
+        required: true
+        default: openmotobudget
+        type: string
+      static_web_app_name:
+        description: Globally unique Static Web App name
+        required: true
+        default: openmotobudget
+        type: string
+      location:
+        description: Azure region
+        required: true
+        default: westeurope
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Bicep
+        uses: azure/cli@v2
+        env:
+          RESOURCE_GROUP_NAME: ${{ inputs.resource_group_name }}
+          STATIC_WEB_APP_NAME: ${{ inputs.static_web_app_name }}
+          LOCATION: ${{ inputs.location }}
+        with:
+          inlineScript: |
+            az deployment sub create \
+              --name openmotobudget-infrastructure \
+              --location "$LOCATION" \
+              --template-file infra/main.bicep \
+              --parameters resourceGroupName="$RESOURCE_GROUP_NAME" \
+                           staticWebAppName="$STATIC_WEB_APP_NAME" \
+                           location="$LOCATION"
+
+            echo "Static Web App URL:"
+            az staticwebapp show \
+              --name "$STATIC_WEB_APP_NAME" \
+              --resource-group "$RESOURCE_GROUP_NAME" \
+              --query "defaultHostname" \
+              --output tsv

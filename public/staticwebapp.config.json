@@ -1,0 +1,13 @@
+{
+  "globalHeaders": {
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "require-corp"
+  },
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": [
+      "/assets/*",
+      "/*.{css,js,wasm,svg,png,ico}"
+    ]
+  }
+}

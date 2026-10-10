@@ -1,0 +1,14 @@
+:root {
+  color: #172f3f;
+  background: #f3f7f8;
+  font-synthesis: none;
+  line-height: 1.5;
+}
+
+body {
+  background:
+    radial-gradient(circle at top right, rgb(219 238 239 / 75%), transparent 35rem),
+    #f3f7f8;
+  margin: 0;
+  min-width: 320px;
+}
