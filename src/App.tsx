@@ -391,11 +391,15 @@ function App() {
     <main className="app-shell">
       <header className="hero">
         <div>
-          <p className="eyebrow">Motorcycle expense log</p>
+          <div className="brand-lockup" aria-label="openmotobudget">
+            <span className="brand-mark" aria-hidden="true"><span /></span>
+            <span className="brand-name">open<span>moto</span>budget</span>
+          </div>
+          <p className="eyebrow">Your garage ledger</p>
           <h1>Every mile, accounted for.</h1>
           <p className="intro">Log fuel, parts, and workshop work in one clear place. Your records stay private on this device.</p>
         </div>
-        <p className="storage-note"><span aria-hidden="true">✓</span> Saved to browser SQLite</p>
+        <p className="storage-note"><span aria-hidden="true">✓</span> Private on-device log</p>
       </header>
       {storageError && (
         <div className="error-summary" role="alert">

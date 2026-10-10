@@ -1,14 +1,23 @@
 :root {
-  color: #172f3f;
-  background: #f3f7f8;
+  --ink: #172124;
+  --muted: #5d6b68;
+  --paper: #f2eee4;
+  --surface: #fffdf8;
+  --sand: #ece4d2;
+  --line: #d7d0c2;
+  --orange: #e45b2d;
+  --orange-dark: #b74421;
+  --blue: #176b83;
+  background: var(--paper);
+  color: var(--ink);
   font-synthesis: none;
   line-height: 1.5;
 }
 
 body {
-  background:
-    radial-gradient(circle at top right, rgb(219 238 239 / 75%), transparent 35rem),
-    #f3f7f8;
+  background-color: var(--paper);
+  background-image: radial-gradient(#d6cdbb 1px, transparent 1px);
+  background-size: 22px 22px;
   margin: 0;
   min-width: 320px;
 }
