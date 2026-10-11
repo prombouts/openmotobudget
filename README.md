@@ -8,6 +8,10 @@ Use the responsive record form to select fuel, a part, or workshop work; the for
 
 The history is displayed newest first with a clear category badge, readable date and odometer, and a prominent cost (or an explicit no-cost status). Records can be edited or deleted after confirmation. The UI is designed for phone use as well as desktop.
 
+## Install on iPhone
+
+Open the deployed app in Safari, tap **Share**, then choose **Add to Home Screen**. The installed app opens in its own window. It needs an internet connection to load and stores records in that browser's on-device storage; records are not synced or backed up.
+
 ## Monthly expenses
 
 Select **Monthly expenses** to view a responsive stacked chart of priced records by calendar month. Fuel, parts, maintenance, and repair have distinct colors, and each stack shows its monthly total. If you have priced records in more than one currency, select a currency to keep totals meaningful; EUR is selected by default when available. A companion data table is available below the chart for accessible, precise values.
