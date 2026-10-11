@@ -67,7 +67,7 @@ project's suggested names and `westeurope`; Static Web App names are globally un
 
 SQLite runs in a dedicated browser worker using the maintained [`@sqlite.org/sqlite-wasm`](https://www.npmjs.com/package/@sqlite.org/sqlite-wasm) package. Its database is persisted in the browser origin's private file system (OPFS), so no database file is created in this repository and no HTTP persistence service is used.
 
-OPFS SQLite requires a browser that supports OPFS and cross-origin isolation. Vite development and preview set the required `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` headers; production hosting must set them too. If initialization fails, the UI clearly reports the storage error and does not fall back to another store.
+OPFS SQLite requires a browser that supports OPFS and cross-origin isolation. Vite development and preview set the required `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: credentialless` headers; production hosting must set them too. `credentialless` maintains cross-origin isolation while allowing no-CORS third-party resources, such as Clarity, to load without credentials. If initialization fails, the UI clearly reports the storage error and does not fall back to another store.
 
 For Azure Static Web Apps, `public/staticwebapp.config.json` supplies these headers in the production build and configures the fallback to `index.html` for client-side navigation.
 
