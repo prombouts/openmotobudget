@@ -3,7 +3,7 @@ import { defineConfig, type PreviewServer, type ViteDevServer } from 'vite'
 
 const isolationHeaders = {
   'Cross-Origin-Opener-Policy': 'same-origin',
-  'Cross-Origin-Embedder-Policy': 'credentialless',
+  'Cross-Origin-Embedder-Policy': 'require-corp',
 }
 
 function applyIsolationHeaders(server: ViteDevServer | PreviewServer) {
