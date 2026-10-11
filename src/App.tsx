@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import {
   createInitialRecordDraft,
   type Record as MotorcycleRecord,
@@ -20,6 +20,11 @@ import {
   RECORDS_STORAGE_KEY,
   SqliteOpfsRecordRepository,
 } from './persistence/recordRepository'
+import {
+  createRecordBackup,
+  parseRecordBackup,
+  type RecordBackup,
+} from './persistence/recordBackup'
 import {
   formatCurrency,
   formatDate,
@@ -282,8 +287,12 @@ function App() {
   const [errors, setErrors] = useState<FieldErrors>({})
   const [editingId, setEditingId] = useState<string>()
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string>()
-  const [activeTab, setActiveTab] = useState<'records' | 'expenses'>('records')
+  const [activeTab, setActiveTab] = useState<'records' | 'expenses' | 'about'>('records')
   const [selectedCurrency, setSelectedCurrency] = useState('')
+  const [pendingBackup, setPendingBackup] = useState<RecordBackup>()
+  const [backupMessage, setBackupMessage] = useState<string>()
+  const [isBackupBusy, setIsBackupBusy] = useState(false)
+  const importInputRef = useRef<HTMLInputElement>(null)
   const currencies = useMemo(() => expenseCurrencies(records), [records])
   const activeCurrency = currencies.includes(selectedCurrency)
     ? selectedCurrency
@@ -384,6 +393,58 @@ function App() {
     }
   }
 
+  const exportBackup = async () => {
+    try {
+      setIsBackupBusy(true)
+      const backup = createRecordBackup(await repository.list())
+      const download = URL.createObjectURL(new Blob(
+        [JSON.stringify(backup, null, 2)],
+        { type: 'application/json' },
+      ))
+      const link = document.createElement('a')
+      link.href = download
+      link.download = `openmotobudget-backup-${backup.exportedAt.slice(0, 10)}.json`
+      link.click()
+      URL.revokeObjectURL(download)
+      setBackupMessage(`Exported ${backup.records.length} ${backup.records.length === 1 ? 'record' : 'records'}.`)
+    } catch (error) {
+      handleStorageError(error)
+    } finally {
+      setIsBackupBusy(false)
+    }
+  }
+
+  const selectBackup = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    try {
+      const backup = parseRecordBackup(await file.text())
+      setPendingBackup(backup)
+      setBackupMessage(undefined)
+    } catch (error) {
+      setPendingBackup(undefined)
+      setBackupMessage(error instanceof Error ? error.message : 'Unable to read this backup file.')
+    }
+  }
+
+  const importBackup = async () => {
+    if (!pendingBackup) return
+    try {
+      setIsBackupBusy(true)
+      await repository.replaceAll(pendingBackup.records)
+      await refreshRecords()
+      setStorageError(undefined)
+      setBackupMessage(`Imported ${pendingBackup.records.length} ${pendingBackup.records.length === 1 ? 'record' : 'records'}.`)
+      setPendingBackup(undefined)
+    } catch (error) {
+      handleStorageError(error)
+    } finally {
+      setIsBackupBusy(false)
+    }
+  }
+
   const error = (name: string) =>
     errors[name] && <p className="field-error" id={`${name}-error`}>{errors[name]}</p>
 
@@ -426,6 +487,15 @@ function App() {
           type="button"
         >
           Monthly expenses
+        </button>
+        <button
+          aria-controls="about-panel"
+          aria-current={activeTab === 'about' ? 'page' : undefined}
+          className="nav-tab"
+          onClick={() => setActiveTab('about')}
+          type="button"
+        >
+          About
         </button>
       </nav>
 
@@ -673,6 +743,82 @@ function App() {
         ) : (
           <ExpenseChart currency={activeCurrency} expenses={expenses} />
         )}
+      </section>
+
+      <section aria-labelledby="about-heading" className="about-panel" hidden={activeTab !== 'about'} id="about-panel">
+        <div className="about-hero">
+          <div>
+            <p className="section-kicker">About this page</p>
+            <h2 id="about-heading">A quiet ledger for the road ahead.</h2>
+            <p className="about-lead">
+              openmotobudget is a local-only motorcycle garage ledger. It helps you
+              keep a useful record of fuel, parts, maintenance, and repairs without
+              sending your garage history anywhere.
+            </p>
+          </div>
+          <div className="about-badge" aria-hidden="true">
+            <span>LOCAL</span>
+            <strong>ONLY</strong>
+          </div>
+        </div>
+
+        <div className="about-grid">
+          <article className="about-card">
+            <span className="about-card-mark" aria-hidden="true">01</span>
+            <h3>Your garage, on your device</h3>
+            <p>
+              Records are stored in this browser on this device. There is no
+              account, shared dashboard, or remote garage database behind this app.
+            </p>
+          </article>
+          <article className="about-card">
+            <span className="about-card-mark" aria-hidden="true">02</span>
+            <h3>Built for real upkeep</h3>
+            <p>
+              Capture the small facts that matter later: what you bought, when you
+              worked on the bike, how far it had ridden, and what it cost.
+            </p>
+          </article>
+          <article className="about-card">
+            <span className="about-card-mark" aria-hidden="true">03</span>
+            <h3>Simple by design</h3>
+            <p>
+              No social feed or sales funnel. Just a private history and a monthly
+              view that makes the cost of keeping a motorcycle moving easier to see.
+            </p>
+          </article>
+        </div>
+
+        <div className="about-boundary">
+          <span className="about-boundary-icon" aria-hidden="true">✓</span>
+          <p><strong>Local storage is the boundary.</strong> Clearing this browser’s site data can remove your records, so keep a separate copy if the history is important to you.</p>
+        </div>
+
+        <section className="backup-tools" aria-labelledby="backup-heading">
+          <div>
+            <h3 id="backup-heading">Back up your garage ledger</h3>
+            <p>Save all records to a JSON file, or restore a backup made by this app.</p>
+          </div>
+          <div className="backup-actions">
+            <button className="text-button" disabled={isBackupBusy || Boolean(storageError)} onClick={() => void exportBackup()} type="button">
+              Export records
+            </button>
+            <input accept="application/json,.json" className="sr-only" onChange={(event) => void selectBackup(event)} ref={importInputRef} type="file" />
+            <button className="text-button" disabled={isBackupBusy || Boolean(storageError)} onClick={() => importInputRef.current?.click()} type="button">
+              Import backup
+            </button>
+          </div>
+          {backupMessage && <p className="backup-message" role="status">{backupMessage}</p>}
+          {pendingBackup && (
+            <div className="backup-confirmation" role="alert">
+              <p><strong>{pendingBackup.records.length} {pendingBackup.records.length === 1 ? 'record is' : 'records are'} ready to import.</strong> This replaces the {records.length} {records.length === 1 ? 'record' : 'records'} currently stored on this device.</p>
+              <div className="backup-actions">
+                <button className="primary-button" disabled={isBackupBusy} onClick={() => void importBackup()} type="button">Replace and import</button>
+                <button className="text-button" disabled={isBackupBusy} onClick={() => setPendingBackup(undefined)} type="button">Cancel</button>
+              </div>
+            </div>
+          )}
+        </section>
       </section>
     </main>
   )

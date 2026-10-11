@@ -3,7 +3,7 @@
 import sqlite3InitModule, { type Database } from '@sqlite.org/sqlite-wasm'
 import type { Record } from '../domain/record'
 
-type Operation = 'initialize' | 'list' | 'save' | 'remove' | 'import'
+type Operation = 'initialize' | 'list' | 'save' | 'remove' | 'import' | 'replace'
 
 type Request = {
   id: number
@@ -78,6 +78,24 @@ async function execute(request: Request): Promise<unknown> {
         for (const record of records) {
           db.exec({
             sql: 'INSERT OR IGNORE INTO records (id, occurred_on, payload) VALUES (?, ?, ?)',
+            bind: [record.id, record.occurredOn, JSON.stringify(record)],
+          })
+        }
+        db.exec('COMMIT')
+      } catch (error) {
+        db.exec('ROLLBACK')
+        throw error
+      }
+      return undefined
+    }
+    case 'replace': {
+      const records = request.records ?? []
+      db.exec('BEGIN')
+      try {
+        db.exec('DELETE FROM records')
+        for (const record of records) {
+          db.exec({
+            sql: 'INSERT INTO records (id, occurred_on, payload) VALUES (?, ?, ?)',
             bind: [record.id, record.occurredOn, JSON.stringify(record)],
           })
         }

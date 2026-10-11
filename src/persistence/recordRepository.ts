@@ -15,11 +15,12 @@ export interface AsyncRecordRepository {
   save(record: Record): Promise<void>
   remove(id: string): Promise<void>
   importLegacy(records: readonly Record[]): Promise<void>
+  replaceAll(records: readonly Record[]): Promise<void>
 }
 
 type WorkerRequest = {
   id: number
-  operation: 'initialize' | 'list' | 'save' | 'remove' | 'import'
+  operation: 'initialize' | 'list' | 'save' | 'remove' | 'import' | 'replace'
   record?: Record
   recordId?: string
   records?: readonly Record[]
@@ -148,6 +149,16 @@ export class SqliteOpfsRecordRepository implements AsyncRecordRepository {
       if (!isRecord(record)) throw new Error('Cannot import invalid legacy record data.')
     }
     await this.execute('import', { records })
+  }
+
+  async replaceAll(records: readonly Record[]): Promise<void> {
+    for (const record of records) {
+      if (!isRecord(record)) throw new Error('Cannot import invalid record data.')
+    }
+    if (new Set(records.map((record) => record.id)).size !== records.length) {
+      throw new Error('Cannot import records with duplicate identifiers.')
+    }
+    await this.execute('replace', { records })
   }
 
   private async execute(

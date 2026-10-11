@@ -247,6 +247,61 @@ button { border-radius: .2rem; cursor: pointer; font: inherit; font-weight: 750;
 .chart-data th, .chart-data td { border-bottom: 1px solid var(--line); padding: .55rem .7rem; text-align: right; white-space: nowrap; }
 .chart-data thead th { color: var(--muted); font-size: .85rem; }
 .chart-data th:first-child { text-align: left; }
+.about-panel {
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: .35rem;
+  color: var(--paper);
+  overflow: hidden;
+  padding: clamp(1.25rem, 4vw, 3rem);
+}
+.about-hero {
+  align-items: end;
+  border-bottom: 1px solid rgb(242 238 228 / 26%);
+  display: flex;
+  gap: 2rem;
+  justify-content: space-between;
+  padding-bottom: clamp(1.5rem, 4vw, 2.75rem);
+}
+.about-hero h2 { color: var(--paper); font-size: clamp(2rem, 5vw, 3.8rem); line-height: .95; max-width: 12ch; }
+.about-hero .section-kicker { color: #f08b5d; }
+.about-lead { color: #d5d8ce; font-size: clamp(1rem, 2vw, 1.2rem); line-height: 1.55; margin: 0; max-width: 43rem; }
+.about-badge {
+  align-items: center;
+  border: 1px solid var(--orange);
+  border-radius: 50%;
+  color: var(--orange);
+  display: flex;
+  flex: 0 0 7rem;
+  flex-direction: column;
+  height: 7rem;
+  justify-content: center;
+  line-height: 1;
+  transform: rotate(7deg);
+  width: 7rem;
+}
+.about-badge span { font-size: .7rem; font-weight: 850; letter-spacing: .15em; }
+.about-badge strong { font-size: 1.35rem; letter-spacing: -.04em; }
+.about-grid { display: grid; gap: 1px; grid-template-columns: repeat(3, 1fr); margin: clamp(1.5rem, 4vw, 2.75rem) 0; }
+.about-card { border-left: 1px solid rgb(242 238 228 / 26%); padding: .2rem clamp(1rem, 2.5vw, 2rem) 0; }
+.about-card:first-child { border-left: 0; padding-left: 0; }
+.about-card h3 { color: var(--paper); font-size: 1.15rem; margin: .85rem 0 .5rem; }
+.about-card p { color: #b8c0bb; line-height: 1.55; margin: 0; max-width: 26ch; }
+.about-card-mark { color: var(--orange); font-size: .75rem; font-weight: 850; letter-spacing: .12em; }
+.about-boundary { align-items: center; background: #243235; display: flex; gap: .8rem; padding: .85rem 1rem; }
+.about-boundary p { color: #d5d8ce; font-size: .88rem; line-height: 1.45; margin: 0; }
+.about-boundary strong { color: var(--paper); }
+.about-boundary-icon { align-items: center; background: var(--orange); border-radius: 50%; color: #fff; display: flex; flex: 0 0 1.8rem; font-weight: 850; height: 1.8rem; justify-content: center; width: 1.8rem; }
+.backup-tools { border-top: 1px solid rgb(242 238 228 / 26%); display: grid; gap: 1rem; grid-template-columns: 1fr auto; margin-top: clamp(1.5rem, 4vw, 2.75rem); padding-top: clamp(1.5rem, 3vw, 2rem); }
+.backup-tools h3 { color: var(--paper); font-size: 1.15rem; margin-bottom: .35rem; }
+.backup-tools > div > p, .backup-message { color: #b8c0bb; margin-bottom: 0; }
+.backup-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .6rem; }
+.backup-tools .text-button { border-color: #aeb9b2; color: var(--paper); }
+.backup-tools .text-button:hover { background: #314144; }
+.backup-message, .backup-confirmation { grid-column: 1 / -1; }
+.backup-confirmation { background: #243235; border-left: 4px solid var(--orange); display: grid; gap: .8rem; padding: .9rem 1rem; }
+.backup-confirmation p { color: #d5d8ce; margin: 0; }
+.backup-confirmation strong { color: var(--paper); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
@@ -266,4 +321,10 @@ button { border-radius: .2rem; cursor: pointer; font: inherit; font-weight: 750;
   .empty-state { align-items: flex-start; }
   .section-heading { align-items: flex-start; flex-direction: column; }
   .currency-filter { align-items: flex-start; flex-direction: column; }
+  .about-hero { align-items: flex-start; flex-direction: column; }
+  .about-badge { align-self: flex-end; }
+  .about-grid { gap: 1.4rem; grid-template-columns: 1fr; }
+  .about-card, .about-card:first-child { border-left: 0; border-top: 1px solid rgb(242 238 228 / 26%); padding: 1.2rem 0 0; }
+  .about-card:first-child { border-top: 0; padding-top: 0; }
+  .backup-tools { grid-template-columns: 1fr; }
 }

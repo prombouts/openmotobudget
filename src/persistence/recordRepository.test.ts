@@ -25,7 +25,7 @@ class MemorySqliteWorker {
 
   postMessage(request: {
     id: number
-    operation: 'initialize' | 'list' | 'save' | 'remove' | 'import'
+    operation: 'initialize' | 'list' | 'save' | 'remove' | 'import' | 'replace'
     record?: Record
     recordId?: string
     records?: readonly Record[]
@@ -46,6 +46,10 @@ class MemorySqliteWorker {
           request.records?.forEach((record) => {
             if (!this.records.has(record.id)) this.records.set(record.id, record)
           })
+          return this.respond(request.id)
+        case 'replace':
+          this.records.clear()
+          request.records?.forEach((record) => this.records.set(record.id, record))
           return this.respond(request.id)
       }
     })
@@ -68,7 +72,7 @@ class ErroringSqliteWorker {
 
   postMessage(request: {
     id: number
-    operation: 'initialize' | 'list' | 'save' | 'remove' | 'import'
+    operation: 'initialize' | 'list' | 'save' | 'remove' | 'import' | 'replace'
   }): void {
     queueMicrotask(() => {
       this.messageListener?.({
@@ -95,7 +99,7 @@ class InvalidResultSqliteWorker {
 
   postMessage(request: {
     id: number
-    operation: 'initialize' | 'list' | 'save' | 'remove' | 'import'
+    operation: 'initialize' | 'list' | 'save' | 'remove' | 'import' | 'replace'
   }): void {
     queueMicrotask(() => {
       this.messageListener?.({
@@ -121,7 +125,7 @@ class CrashingSqliteWorker {
 
   postMessage(request: {
     id: number
-    operation: 'initialize' | 'list' | 'save' | 'remove' | 'import'
+    operation: 'initialize' | 'list' | 'save' | 'remove' | 'import' | 'replace'
   }): void {
     queueMicrotask(() => {
       if (request.operation === 'initialize') {
@@ -187,6 +191,9 @@ describe('LocalStorageRecordRepository', () => {
 
       await repository.remove('fuel-1')
       expect(await repository.list()).toEqual([importedRecord])
+
+      await repository.replaceAll([fuelRecord])
+      expect(await repository.list()).toEqual([fuelRecord])
     })
 
     it('rejects invalid records before sending them to browser SQLite', async () => {
