@@ -1,5 +1,10 @@
-import type { Record } from '../domain/record'
+import { DEFAULT_MOTORCYCLE_ID, type Record } from '../domain/record'
 import { validateRecord } from '../domain/validateRecord'
+import {
+  defaultMotorcycle,
+  type Motorcycle,
+  validateMotorcycle,
+} from '../domain/motorcycle'
 
 export const BACKUP_FORMAT = 'openmotobudget-backup'
 export const BACKUP_VERSION = 1
@@ -9,14 +14,19 @@ export type RecordBackup = {
   version: typeof BACKUP_VERSION
   exportedAt: string
   records: Record[]
+  motorcycles: Motorcycle[]
 }
 
-export function createRecordBackup(records: readonly Record[]): RecordBackup {
+export function createRecordBackup(
+  records: readonly Record[],
+  motorcycles: readonly Motorcycle[],
+): RecordBackup {
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
     records: [...records],
+    motorcycles: [...motorcycles],
   }
 }
 
@@ -42,9 +52,19 @@ export function parseRecordBackup(serialized: string): RecordBackup {
   if (!Array.isArray(backup.records)) {
     throw new Error('This backup does not contain a record list.')
   }
+  const motorcycles = backup.motorcycles === undefined
+    ? [defaultMotorcycle]
+    : backup.motorcycles
+  if (!Array.isArray(motorcycles)) {
+    throw new Error('This backup does not contain a motorcycle list.')
+  }
 
+  const records = backup.records.map((record) => ({
+    ...record,
+    motorcycleId: record.motorcycleId ?? DEFAULT_MOTORCYCLE_ID,
+  }))
   const recordIds = new Set<string>()
-  for (const record of backup.records) {
+  for (const record of records) {
     if (!record || typeof record !== 'object' || !validateRecord(record as Record).valid) {
       throw new Error('This backup contains an invalid record.')
     }
@@ -54,5 +74,24 @@ export function parseRecordBackup(serialized: string): RecordBackup {
     recordIds.add(record.id)
   }
 
-  return backup as RecordBackup
+  const motorcycleIds = new Set<string>()
+  for (const motorcycle of motorcycles) {
+    try {
+      const validatedMotorcycle = validateMotorcycle(motorcycle)
+      if (motorcycleIds.has(validatedMotorcycle.id)) {
+        throw new Error('This backup contains duplicate motorcycle identifiers.')
+      }
+      motorcycleIds.add(validatedMotorcycle.id)
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('duplicate')) throw error
+      throw new Error('This backup contains an invalid motorcycle.')
+    }
+  }
+  for (const record of records) {
+    if (!motorcycleIds.has(record.motorcycleId)) {
+      throw new Error('This backup contains a record for an unknown motorcycle.')
+    }
+  }
+
+  return { ...backup, records, motorcycles } as RecordBackup
 }

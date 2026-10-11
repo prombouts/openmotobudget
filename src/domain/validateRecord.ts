@@ -8,6 +8,7 @@ import type {
   WorkRecord,
   WorkType,
 } from './record'
+import { DEFAULT_MOTORCYCLE_ID } from './record'
 
 const recordKinds: readonly RecordKind[] = ['fuel', 'part', 'work']
 const workTypes: readonly WorkType[] = ['maintenance', 'repair']
@@ -55,6 +56,7 @@ export function validateRecord(
 ): RecordValidationResult {
   const errors: { [field: string]: string } = {}
   const id = trim(draft.id)
+  const motorcycleId = trim(draft.motorcycleId) ?? DEFAULT_MOTORCYCLE_ID
   const occurredOn = trim(draft.occurredOn)
   const notes = trim(draft.notes)
   const currency = trim(draft.currency)
@@ -115,6 +117,7 @@ export function validateRecord(
 
   const base = {
     id: id!,
+    motorcycleId,
     occurredOn: occurredOn!,
     ...(draft.odometerKm !== undefined ? { odometerKm: draft.odometerKm } : {}),
     ...(hasCost ? { costAmount: draft.costAmount! } : {}),

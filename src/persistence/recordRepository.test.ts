@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Record } from '../domain/record'
+import { defaultMotorcycle, type Motorcycle } from '../domain/motorcycle'
 import {
   LocalStorageRecordRepository,
   RECORDS_STORAGE_KEY,
@@ -21,12 +22,17 @@ class MemoryStorage {
 
 class MemorySqliteWorker {
   private readonly records = new Map<string, Record>()
+  private readonly motorcycles = new Map<string, Motorcycle>([
+    [defaultMotorcycle.id, defaultMotorcycle],
+  ])
   private messageListener?: (event: MessageEvent<{ id: number; result?: unknown; error?: string }>) => void
 
   postMessage(request: {
     id: number
-    operation: 'initialize' | 'list' | 'save' | 'remove' | 'import' | 'replace'
+    operation: 'initialize' | 'list' | 'list-motorcycles' | 'save' | 'save-motorcycle' | 'remove' | 'import' | 'replace'
     record?: Record
+    motorcycle?: Motorcycle
+    motorcycles?: readonly Motorcycle[]
     recordId?: string
     records?: readonly Record[]
   }): void {
@@ -36,8 +42,13 @@ class MemorySqliteWorker {
           return this.respond(request.id)
         case 'list':
           return this.respond(request.id, [...this.records.values()])
+        case 'list-motorcycles':
+          return this.respond(request.id, [...this.motorcycles.values()])
         case 'save':
           this.records.set(request.record!.id, request.record!)
+          return this.respond(request.id)
+        case 'save-motorcycle':
+          this.motorcycles.set(request.motorcycle!.id, request.motorcycle!)
           return this.respond(request.id)
         case 'remove':
           this.records.delete(request.recordId!)
@@ -50,6 +61,8 @@ class MemorySqliteWorker {
         case 'replace':
           this.records.clear()
           request.records?.forEach((record) => this.records.set(record.id, record))
+          this.motorcycles.clear()
+          request.motorcycles?.forEach((motorcycle) => this.motorcycles.set(motorcycle.id, motorcycle))
           return this.respond(request.id)
       }
     })
@@ -72,7 +85,7 @@ class ErroringSqliteWorker {
 
   postMessage(request: {
     id: number
-    operation: 'initialize' | 'list' | 'save' | 'remove' | 'import' | 'replace'
+    operation: 'initialize' | 'list' | 'list-motorcycles' | 'save' | 'save-motorcycle' | 'remove' | 'import' | 'replace'
   }): void {
     queueMicrotask(() => {
       this.messageListener?.({
@@ -99,7 +112,7 @@ class InvalidResultSqliteWorker {
 
   postMessage(request: {
     id: number
-    operation: 'initialize' | 'list' | 'save' | 'remove' | 'import' | 'replace'
+    operation: 'initialize' | 'list' | 'list-motorcycles' | 'save' | 'save-motorcycle' | 'remove' | 'import' | 'replace'
   }): void {
     queueMicrotask(() => {
       this.messageListener?.({
@@ -125,7 +138,7 @@ class CrashingSqliteWorker {
 
   postMessage(request: {
     id: number
-    operation: 'initialize' | 'list' | 'save' | 'remove' | 'import' | 'replace'
+    operation: 'initialize' | 'list' | 'list-motorcycles' | 'save' | 'save-motorcycle' | 'remove' | 'import' | 'replace'
   }): void {
     queueMicrotask(() => {
       if (request.operation === 'initialize') {
@@ -147,6 +160,7 @@ class CrashingSqliteWorker {
 
 const fuelRecord: Record = {
   id: 'fuel-1',
+  motorcycleId: 'default-motorcycle',
   kind: 'fuel',
   occurredOn: '2020-09-01',
   odometerKm: 1250,
@@ -173,6 +187,7 @@ describe('LocalStorageRecordRepository', () => {
       const repository = new SqliteOpfsRecordRepository(workerFactory)
       const importedRecord: Record = {
         id: 'part-1',
+        motorcycleId: 'default-motorcycle',
         kind: 'part',
         occurredOn: '2020-10-01',
         odometerKm: 1300,
@@ -192,8 +207,14 @@ describe('LocalStorageRecordRepository', () => {
       await repository.remove('fuel-1')
       expect(await repository.list()).toEqual([importedRecord])
 
-      await repository.replaceAll([fuelRecord])
+      await repository.replaceAll([fuelRecord], [defaultMotorcycle])
       expect(await repository.list()).toEqual([fuelRecord])
+
+      await repository.saveMotorcycle({ id: 'bike-2', name: 'Second bike' })
+      expect(await repository.listMotorcycles()).toEqual([
+        defaultMotorcycle,
+        { id: 'bike-2', name: 'Second bike' },
+      ])
     })
 
     it('rejects invalid records before sending them to browser SQLite', async () => {
@@ -236,6 +257,7 @@ describe('LocalStorageRecordRepository', () => {
     const storage = new MemoryStorage()
     const partRecord: Record = {
       id: 'part-1',
+      motorcycleId: 'default-motorcycle',
       kind: 'part',
       occurredOn: '2020-10-01',
       odometerKm: 1300,
@@ -263,6 +285,7 @@ describe('LocalStorageRecordRepository', () => {
     const repository = new LocalStorageRecordRepository(storage)
     const record: Record = {
       id: 'fuel-without-odometer',
+      motorcycleId: 'default-motorcycle',
       kind: 'fuel',
       occurredOn: '2020-09-01',
       liters: 10,
@@ -289,6 +312,7 @@ describe('LocalStorageRecordRepository', () => {
     const repository = new LocalStorageRecordRepository(storage)
     const partRecord: Record = {
       id: 'part-1',
+      motorcycleId: 'default-motorcycle',
       kind: 'part',
       occurredOn: '2020-10-01',
       odometerKm: 1300,

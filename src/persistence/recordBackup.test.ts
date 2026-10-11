@@ -5,9 +5,11 @@ import {
   createRecordBackup,
   parseRecordBackup,
 } from './recordBackup'
+import { defaultMotorcycle } from '../domain/motorcycle'
 
 const fuelRecord = {
   id: 'fuel-1',
+  motorcycleId: 'default-motorcycle',
   kind: 'fuel' as const,
   occurredOn: '2020-09-01',
   liters: 10,
@@ -15,12 +17,13 @@ const fuelRecord = {
 
 describe('record backups', () => {
   it('creates a versioned backup and parses it again', () => {
-    const backup = createRecordBackup([fuelRecord])
+    const backup = createRecordBackup([fuelRecord], [defaultMotorcycle])
 
     expect(backup).toMatchObject({
       format: BACKUP_FORMAT,
       version: BACKUP_VERSION,
       records: [fuelRecord],
+      motorcycles: [defaultMotorcycle],
     })
     expect(parseRecordBackup(JSON.stringify(backup))).toEqual(backup)
   })
@@ -48,5 +51,23 @@ describe('record backups', () => {
       exportedAt: '2020-09-01T12:00:00.000Z',
       records: [fuelRecord, fuelRecord],
     }))).toThrow('This backup contains duplicate record identifiers.')
+  })
+
+  it('supports legacy backups and rejects records that reference unknown motorcycles', () => {
+    const legacyBackup = {
+      format: BACKUP_FORMAT,
+      version: BACKUP_VERSION,
+      exportedAt: '2020-09-01T12:00:00.000Z',
+      records: [fuelRecord],
+    }
+    expect(parseRecordBackup(JSON.stringify(legacyBackup)).motorcycles).toEqual([
+      defaultMotorcycle,
+    ])
+
+    expect(() => parseRecordBackup(JSON.stringify({
+      ...legacyBackup,
+      records: [{ ...fuelRecord, motorcycleId: 'unknown-motorcycle' }],
+      motorcycles: [defaultMotorcycle],
+    }))).toThrow('This backup contains a record for an unknown motorcycle.')
   })
 })

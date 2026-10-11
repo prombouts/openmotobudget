@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   createInitialRecordDraft,
   DEFAULT_CURRENCY,
+  DEFAULT_MOTORCYCLE_ID,
+  type Record,
   type RecordDraft,
 } from './record'
 import { validateRecord } from './validateRecord'
@@ -23,6 +25,7 @@ describe('validateRecord', () => {
     expect(createInitialRecordDraft(new Date(2026, 8, 29))).toEqual({
       occurredOn: '2026-09-29',
       currency: DEFAULT_CURRENCY,
+      motorcycleId: DEFAULT_MOTORCYCLE_ID,
     })
     expect(DEFAULT_CURRENCY).toBe('EUR')
   })
@@ -34,6 +37,7 @@ describe('validateRecord', () => {
       valid: true,
       value: {
         id: 'fuel-1',
+        motorcycleId: DEFAULT_MOTORCYCLE_ID,
         kind: 'fuel',
         occurredOn: '2026-09-29',
         odometerKm: 0,
@@ -106,7 +110,10 @@ describe('validateRecord', () => {
       },
     ],
   ])('validates and normalizes %s records', (_name, draft, value) => {
-    expect(validateRecord(draft, now)).toEqual({ valid: true, value })
+    expect(validateRecord(draft, now)).toEqual({
+      valid: true,
+      value: { ...(value as Record), motorcycleId: DEFAULT_MOTORCYCLE_ID },
+    })
   })
 
   it.each<[string, RecordDraft, string, string]>([
@@ -159,6 +166,7 @@ describe('validateRecord', () => {
       valid: true,
       value: {
         id: 'fuel-1',
+        motorcycleId: DEFAULT_MOTORCYCLE_ID,
         kind: 'fuel',
         occurredOn: '2026-09-29',
         liters: 12.5,
@@ -235,6 +243,7 @@ describe('validateRecord', () => {
       valid: true,
       value: {
         id: 'fuel-1',
+        motorcycleId: DEFAULT_MOTORCYCLE_ID,
         kind: 'fuel',
         occurredOn: '2026-09-29',
         odometerKm: 0,

@@ -119,6 +119,35 @@ h3 { color: var(--ink); font-size: 1rem; margin-bottom: .25rem; }
   white-space: nowrap;
 }
 .storage-note span { color: var(--orange); font-size: 1rem; }
+.header-tools { align-items: center; display: flex; flex-wrap: wrap; gap: .45rem; }
+.header-icon-button {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  display: inline-flex;
+  height: 2.6rem;
+  justify-content: center;
+  padding: .55rem;
+  width: 2.6rem;
+}
+.header-icon-button:hover { background: var(--sand); }
+.header-icon-button:disabled { cursor: not-allowed; opacity: .5; }
+.header-icon-button svg { fill: none; height: 1.25rem; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; width: 1.25rem; }
+.garage-switcher { background: var(--sand); border: 1px solid var(--line); }
+.garage-switcher summary { align-items: center; cursor: pointer; display: flex; gap: 1rem; justify-content: space-between; list-style: none; padding: .8rem clamp(1rem, 3vw, 1.5rem); }
+.garage-switcher summary::-webkit-details-marker { display: none; }
+.garage-switcher summary > span:first-child { display: grid; gap: .1rem; }
+.garage-switcher summary strong { color: var(--ink); font-size: 1.05rem; }
+.garage-summary-action { color: var(--orange-dark); font-size: .85rem; font-weight: 800; }
+.garage-switcher[open] summary { border-bottom: 1px solid var(--line); }
+.garage-content { display: grid; gap: .9rem; padding: 1rem clamp(1rem, 3vw, 1.5rem); }
+.garage-content h2 { font-size: 1.3rem; }
+.garage-controls { align-items: center; display: flex; flex-wrap: wrap; gap: .6rem; }
+.garage-select select { min-height: 2.6rem; width: auto; }
+.motorcycle-name-form { display: flex; gap: .45rem; }
+.motorcycle-name-form input { min-height: 2.6rem; width: min(15rem, 38vw); }
+.garage-switcher .field-error { flex-basis: 100%; margin: 0; }
 
 .app-nav {
   border-bottom: 2px solid var(--ink);
@@ -302,6 +331,14 @@ button { border-radius: .2rem; cursor: pointer; font: inherit; font-weight: 750;
 .backup-confirmation { background: #243235; border-left: 4px solid var(--orange); display: grid; gap: .8rem; padding: .9rem 1rem; }
 .backup-confirmation p { color: #d5d8ce; margin: 0; }
 .backup-confirmation strong { color: var(--paper); }
+.backup-status { display: grid; gap: .75rem; }
+.backup-status .backup-message { background: var(--sand); color: var(--ink); font-weight: 700; padding: .8rem 1rem; }
+.about-story, .about-privacy { border-top: 1px solid rgb(242 238 228 / 26%); display: grid; gap: 1.5rem; grid-template-columns: minmax(12rem, .7fr) 1fr; margin-top: clamp(1.5rem, 4vw, 2.75rem); padding-top: clamp(1.5rem, 3vw, 2rem); }
+.about-story h3, .about-privacy h3 { color: var(--paper); font-size: 1.2rem; margin-bottom: 0; }
+.about-story > p, .about-privacy > p { color: #d5d8ce; line-height: 1.55; margin: 0; max-width: 48rem; }
+.about-story a { color: #f08b5d; font-weight: 800; text-underline-offset: .15em; }
+.about-story a:hover { color: var(--paper); }
+.about-privacy .section-kicker { color: #8fc9bd; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
@@ -311,7 +348,10 @@ button { border-radius: .2rem; cursor: pointer; font: inherit; font-weight: 750;
   #root { padding: 1rem; }
   .hero, .record-item { align-items: stretch; flex-direction: column; }
   .brand-lockup { margin-bottom: .85rem; }
-  .storage-note { align-self: flex-start; }
+  .header-tools { align-self: flex-start; }
+  .garage-switcher summary { align-items: flex-start; flex-direction: column; }
+  .garage-controls, .motorcycle-name-form { align-items: stretch; flex-direction: column; }
+  .garage-select select, .motorcycle-name-form input { width: 100%; }
   .record-type-options { grid-template-columns: 1fr; }
   .record-type-option { min-height: auto; }
   .record-side, .record-actions, .delete-confirmation { align-items: stretch; }
@@ -326,5 +366,6 @@ button { border-radius: .2rem; cursor: pointer; font: inherit; font-weight: 750;
   .about-grid { gap: 1.4rem; grid-template-columns: 1fr; }
   .about-card, .about-card:first-child { border-left: 0; border-top: 1px solid rgb(242 238 228 / 26%); padding: 1.2rem 0 0; }
   .about-card:first-child { border-top: 0; padding-top: 0; }
+  .about-story, .about-privacy { grid-template-columns: 1fr; }
   .backup-tools { grid-template-columns: 1fr; }
 }

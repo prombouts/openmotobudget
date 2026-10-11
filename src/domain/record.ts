@@ -1,9 +1,11 @@
 export type RecordKind = 'fuel' | 'part' | 'work'
 export type WorkType = 'maintenance' | 'repair'
 export const DEFAULT_CURRENCY = 'EUR'
+export const DEFAULT_MOTORCYCLE_ID = 'default-motorcycle'
 
 interface RecordBase {
   id: string
+  motorcycleId: string
   occurredOn: string
   odometerKm?: number
   costAmount?: number
@@ -33,6 +35,7 @@ export type Record = FuelRecord | PartRecord | WorkRecord
 
 export interface RecordDraft {
   id?: string
+  motorcycleId?: string
   kind?: RecordKind
   occurredOn?: string
   odometerKm?: number
@@ -53,6 +56,7 @@ export function createInitialRecordDraft(now: Date = new Date()): RecordDraft {
   return {
     occurredOn: `${now.getFullYear()}-${month}-${day}`,
     currency: DEFAULT_CURRENCY,
+    motorcycleId: DEFAULT_MOTORCYCLE_ID,
   }
 }
 

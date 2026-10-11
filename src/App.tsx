@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import {
   createInitialRecordDraft,
+  DEFAULT_MOTORCYCLE_ID,
   type Record as MotorcycleRecord,
   type RecordDraft,
   type RecordKind,
   type WorkType,
 } from './domain/record'
+import {
+  defaultMotorcycle,
+  type Motorcycle,
+} from './domain/motorcycle'
 import {
   expenseCategories,
   expenseChartState,
@@ -120,10 +125,11 @@ function newId(): string {
   return crypto.randomUUID()
 }
 
-function toDraft(values: FormValues, id: string): RecordDraft {
+function toDraft(values: FormValues, id: string, motorcycleId: string): RecordDraft {
   const costAmount = asNumber(values.costAmount)
   return {
     id,
+    motorcycleId,
     kind: values.kind,
     occurredOn: values.occurredOn,
     odometerKm: asNumber(values.odometerKm),
@@ -281,6 +287,11 @@ function ExpenseChart({
 function App() {
   const repository = useMemo(() => new SqliteOpfsRecordRepository(), [])
   const [records, setRecords] = useState<MotorcycleRecord[]>([])
+  const [motorcycles, setMotorcycles] = useState<Motorcycle[]>([])
+  const [selectedMotorcycleId, setSelectedMotorcycleId] = useState(DEFAULT_MOTORCYCLE_ID)
+  const [motorcycleName, setMotorcycleName] = useState(defaultMotorcycle.name)
+  const [garageError, setGarageError] = useState<string>()
+  const [isGarageSaving, setIsGarageSaving] = useState(false)
   const [storageError, setStorageError] = useState<string>()
   const [isLoading, setIsLoading] = useState(true)
   const [values, setValues] = useState<FormValues>(initialValues)
@@ -293,22 +304,40 @@ function App() {
   const [backupMessage, setBackupMessage] = useState<string>()
   const [isBackupBusy, setIsBackupBusy] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
-  const currencies = useMemo(() => expenseCurrencies(records), [records])
+  const selectedMotorcycleName = motorcycles.find(
+    (motorcycle) => motorcycle.id === selectedMotorcycleId,
+  )?.name ?? defaultMotorcycle.name
+  const selectedRecords = useMemo(
+    () => records.filter(
+      (record) => (record.motorcycleId ?? DEFAULT_MOTORCYCLE_ID) === selectedMotorcycleId,
+    ),
+    [records, selectedMotorcycleId],
+  )
+  const currencies = useMemo(() => expenseCurrencies(selectedRecords), [selectedRecords])
   const activeCurrency = currencies.includes(selectedCurrency)
     ? selectedCurrency
     : currencies.includes('EUR') ? 'EUR' : currencies[0]
   const expenses = useMemo(
-    () => activeCurrency ? monthlyExpenses(records, activeCurrency) : [],
-    [activeCurrency, records],
+    () => activeCurrency ? monthlyExpenses(selectedRecords, activeCurrency) : [],
+    [activeCurrency, selectedRecords],
   )
   const chartState = useMemo(
-    () => expenseChartState(records, activeCurrency),
-    [activeCurrency, records],
+    () => expenseChartState(selectedRecords, activeCurrency),
+    [activeCurrency, selectedRecords],
   )
 
   const refreshRecords = useCallback(async () => {
-    const loadedRecords = await repository.list()
+    const [loadedRecords, loadedMotorcycles] = await Promise.all([
+      repository.list(),
+      repository.listMotorcycles(),
+    ])
     setRecords(sortRecords(loadedRecords))
+    setMotorcycles(loadedMotorcycles)
+    setSelectedMotorcycleId((current) =>
+      loadedMotorcycles.some((motorcycle) => motorcycle.id === current)
+        ? current
+        : loadedMotorcycles[0]?.id ?? DEFAULT_MOTORCYCLE_ID,
+    )
   }, [repository])
 
   useEffect(() => {
@@ -354,7 +383,9 @@ function App() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (isLoading || storageError) return
-    const validation = validateRecord(toDraft(values, editingId ?? newId()))
+    const validation = validateRecord(
+      toDraft(values, editingId ?? newId(), selectedMotorcycleId),
+    )
     if (!validation.valid) {
       setErrors(validation.errors)
       window.requestAnimationFrame(() =>
@@ -374,11 +405,48 @@ function App() {
   }
 
   const beginEdit = (record: MotorcycleRecord) => {
+    setSelectedMotorcycleId(record.motorcycleId ?? DEFAULT_MOTORCYCLE_ID)
     setValues(valuesFromRecord(record))
     setErrors({})
     setEditingId(record.id)
     setConfirmingDeleteId(undefined)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const saveMotorcycle = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    try {
+      setIsGarageSaving(true)
+      await repository.saveMotorcycle({ id: selectedMotorcycleId, name: motorcycleName })
+      await refreshRecords()
+      setGarageError(undefined)
+      setStorageError(undefined)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to save this motorcycle.'
+      setGarageError(message)
+      handleStorageError(error)
+    } finally {
+      setIsGarageSaving(false)
+    }
+  }
+
+  const addMotorcycle = async () => {
+    try {
+      setIsGarageSaving(true)
+      const motorcycle = { id: newId(), name: 'New motorcycle' }
+      await repository.saveMotorcycle(motorcycle)
+      await refreshRecords()
+      setSelectedMotorcycleId(motorcycle.id)
+      setMotorcycleName(motorcycle.name)
+      setGarageError(undefined)
+      setStorageError(undefined)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to add a motorcycle.'
+      setGarageError(message)
+      handleStorageError(error)
+    } finally {
+      setIsGarageSaving(false)
+    }
   }
 
   const remove = async (id: string) => {
@@ -396,7 +464,11 @@ function App() {
   const exportBackup = async () => {
     try {
       setIsBackupBusy(true)
-      const backup = createRecordBackup(await repository.list())
+      const [recordsToExport, motorcyclesToExport] = await Promise.all([
+        repository.list(),
+        repository.listMotorcycles(),
+      ])
+      const backup = createRecordBackup(recordsToExport, motorcyclesToExport)
       const download = URL.createObjectURL(new Blob(
         [JSON.stringify(backup, null, 2)],
         { type: 'application/json' },
@@ -433,7 +505,7 @@ function App() {
     if (!pendingBackup) return
     try {
       setIsBackupBusy(true)
-      await repository.replaceAll(pendingBackup.records)
+      await repository.replaceAll(pendingBackup.records, pendingBackup.motorcycles)
       await refreshRecords()
       setStorageError(undefined)
       setBackupMessage(`Imported ${pendingBackup.records.length} ${pendingBackup.records.length === 1 ? 'record' : 'records'}.`)
@@ -460,7 +532,34 @@ function App() {
           <h1>Every mile, accounted for.</h1>
           <p className="intro">Log fuel, parts, and workshop work in one clear place. Your records stay private on this device.</p>
         </div>
-        <p className="storage-note"><span aria-hidden="true">✓</span> Private on-device log</p>
+        <div className="header-tools">
+          <p className="storage-note"><span aria-hidden="true">✓</span> Private on-device log</p>
+          <button
+            aria-label="Export records"
+            className="header-icon-button"
+            disabled={isBackupBusy || Boolean(storageError)}
+            onClick={() => void exportBackup()}
+            title="Export records"
+            type="button"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 15v4h14v-4" />
+            </svg>
+          </button>
+          <input accept="application/json,.json" className="sr-only" onChange={(event) => void selectBackup(event)} ref={importInputRef} type="file" />
+          <button
+            aria-label="Import backup"
+            className="header-icon-button"
+            disabled={isBackupBusy || Boolean(storageError)}
+            onClick={() => importInputRef.current?.click()}
+            title="Import backup"
+            type="button"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M12 14V3m0 0 4 4m-4-4-4 4M5 15v4h14v-4" />
+            </svg>
+          </button>
+        </div>
       </header>
       {storageError && (
         <div className="error-summary" role="alert">
@@ -468,6 +567,65 @@ function App() {
           <span> {storageError}</span>
         </div>
       )}
+      {(backupMessage || pendingBackup) && (
+        <div className="backup-status">
+          {backupMessage && <p className="backup-message" role="status">{backupMessage}</p>}
+          {pendingBackup && (
+            <div className="backup-confirmation" role="alert">
+              <p><strong>{pendingBackup.records.length} {pendingBackup.records.length === 1 ? 'record is' : 'records are'} ready to import.</strong> This replaces the {records.length} {records.length === 1 ? 'record' : 'records'} currently stored on this device.</p>
+              <div className="backup-actions">
+                <button className="primary-button" disabled={isBackupBusy} onClick={() => void importBackup()} type="button">Replace and import</button>
+                <button className="text-button" disabled={isBackupBusy} onClick={() => setPendingBackup(undefined)} type="button">Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      <details className="garage-switcher">
+        <summary>
+          <span>
+            <span className="section-kicker">Your garage</span>
+            <strong>{selectedMotorcycleName}</strong>
+          </span>
+          <span className="garage-summary-action">Manage motorcycles</span>
+        </summary>
+        <div className="garage-content">
+          <h2>Choose a motorcycle</h2>
+          <div className="garage-controls">
+            <label className="garage-select">
+              <span className="sr-only">Selected motorcycle</span>
+              <select
+                disabled={isLoading || Boolean(storageError) || isGarageSaving}
+                onChange={(event) => {
+                  const motorcycle = motorcycles.find(
+                    (item) => item.id === event.target.value,
+                  )
+                  setSelectedMotorcycleId(event.target.value)
+                  if (motorcycle) setMotorcycleName(motorcycle.name)
+                }}
+                value={selectedMotorcycleId}
+              >
+                {motorcycles.map((motorcycle) => (
+                  <option key={motorcycle.id} value={motorcycle.id}>{motorcycle.name}</option>
+                ))}
+              </select>
+            </label>
+            <form className="motorcycle-name-form" onSubmit={saveMotorcycle}>
+              <label className="sr-only" htmlFor="motorcycle-name">Motorcycle name</label>
+              <input
+                disabled={isLoading || Boolean(storageError) || isGarageSaving}
+                id="motorcycle-name"
+                onChange={(event) => setMotorcycleName(event.target.value)}
+                value={motorcycleName}
+              />
+              <button className="text-button" disabled={isLoading || Boolean(storageError) || isGarageSaving} type="submit">Save name</button>
+            </form>
+            <button className="primary-button" disabled={isLoading || Boolean(storageError) || isGarageSaving} onClick={() => void addMotorcycle()} type="button">Add motorcycle</button>
+          </div>
+          {garageError && <p className="field-error" role="alert">{garageError}</p>}
+        </div>
+      </details>
 
       <nav className="app-nav" aria-label="Expense tracker views">
         <button
@@ -636,7 +794,7 @@ function App() {
             <p className="section-kicker">Newest first</p>
             <h2 id="history-heading">Record history</h2>
           </div>
-          <span className="record-count">{isLoading ? 'Loading records…' : `${formatNumber(records.length)} ${records.length === 1 ? 'record' : 'records'}`}</span>
+          <span className="record-count">{isLoading ? 'Loading records…' : `${formatNumber(selectedRecords.length)} ${selectedRecords.length === 1 ? 'record' : 'records'}`}</span>
         </div>
         {isLoading ? (
           <div className="empty-state" role="status">
@@ -654,7 +812,7 @@ function App() {
               <p>Browser SQLite must initialize successfully before records can be viewed or changed.</p>
             </div>
           </div>
-        ) : records.length === 0 ? (
+        ) : selectedRecords.length === 0 ? (
           <div className="empty-state">
             <span className="empty-state-icon" aria-hidden="true">⌁</span>
             <div>
@@ -664,7 +822,7 @@ function App() {
           </div>
         ) : (
           <ul className="record-list">
-            {records.map((record) => (
+            {selectedRecords.map((record) => (
               <li key={record.id} className="record-item">
                 <div className="record-content">
                   <div className="record-heading">
@@ -716,7 +874,7 @@ function App() {
             </label>
           )}
         </div>
-        {records.length === 0 ? (
+        {selectedRecords.length === 0 ? (
           <div className="empty-state">
             <span className="empty-state-icon" aria-hidden="true">⌁</span>
             <div>
@@ -794,6 +952,32 @@ function App() {
           <p><strong>Local storage is the boundary.</strong> Clearing this browser’s site data can remove your records, so keep a separate copy if the history is important to you.</p>
         </div>
 
+        <div className="about-story">
+          <div>
+            <p className="section-kicker">Why it exists</p>
+            <h3>Started in one garage. Open to every rider.</h3>
+          </div>
+          <p>
+            openmotobudget started as a personal tracker for keeping one motorcycle’s
+            running costs in order. It is free for anyone to use, with no paid tier
+            and no account required. If you would like to improve it, contribute on{' '}
+            <a href="https://github.com/prombouts/openmotobudget" rel="noreferrer" target="_blank">GitHub</a>.
+          </p>
+        </div>
+
+        <div className="about-privacy">
+          <div>
+            <p className="section-kicker">Analytics promise</p>
+            <h3>Free to use. No personal data tracking.</h3>
+          </div>
+          <p>
+            We use Microsoft Clarity to understand how the app is used and where
+            the experience can improve. We do not track personal data whatsoever,
+            and we will never use this app to do so. Your garage records stay local
+            to your device.
+          </p>
+        </div>
+
         <section className="backup-tools" aria-labelledby="backup-heading">
           <div>
             <h3 id="backup-heading">Back up your garage ledger</h3>
@@ -803,21 +987,10 @@ function App() {
             <button className="text-button" disabled={isBackupBusy || Boolean(storageError)} onClick={() => void exportBackup()} type="button">
               Export records
             </button>
-            <input accept="application/json,.json" className="sr-only" onChange={(event) => void selectBackup(event)} ref={importInputRef} type="file" />
             <button className="text-button" disabled={isBackupBusy || Boolean(storageError)} onClick={() => importInputRef.current?.click()} type="button">
               Import backup
             </button>
           </div>
-          {backupMessage && <p className="backup-message" role="status">{backupMessage}</p>}
-          {pendingBackup && (
-            <div className="backup-confirmation" role="alert">
-              <p><strong>{pendingBackup.records.length} {pendingBackup.records.length === 1 ? 'record is' : 'records are'} ready to import.</strong> This replaces the {records.length} {records.length === 1 ? 'record' : 'records'} currently stored on this device.</p>
-              <div className="backup-actions">
-                <button className="primary-button" disabled={isBackupBusy} onClick={() => void importBackup()} type="button">Replace and import</button>
-                <button className="text-button" disabled={isBackupBusy} onClick={() => setPendingBackup(undefined)} type="button">Cancel</button>
-              </div>
-            </div>
-          )}
         </section>
       </section>
     </main>

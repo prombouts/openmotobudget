@@ -1,4 +1,8 @@
 import type { Record } from '../domain/record'
+import {
+  type Motorcycle,
+  validateMotorcycle,
+} from '../domain/motorcycle'
 import { validateRecord } from '../domain/validateRecord'
 
 export const RECORDS_STORAGE_KEY = 'motorcycle-records'
@@ -12,16 +16,20 @@ export interface RecordRepository {
 
 export interface AsyncRecordRepository {
   list(): Promise<Record[]>
+  listMotorcycles(): Promise<Motorcycle[]>
   save(record: Record): Promise<void>
+  saveMotorcycle(motorcycle: Motorcycle): Promise<void>
   remove(id: string): Promise<void>
   importLegacy(records: readonly Record[]): Promise<void>
-  replaceAll(records: readonly Record[]): Promise<void>
+  replaceAll(records: readonly Record[], motorcycles: readonly Motorcycle[]): Promise<void>
 }
 
 type WorkerRequest = {
   id: number
-  operation: 'initialize' | 'list' | 'save' | 'remove' | 'import' | 'replace'
+  operation: 'initialize' | 'list' | 'list-motorcycles' | 'save' | 'save-motorcycle' | 'remove' | 'import' | 'replace'
   record?: Record
+  motorcycle?: Motorcycle
+  motorcycles?: readonly Motorcycle[]
   recordId?: string
   records?: readonly Record[]
 }
@@ -40,9 +48,10 @@ interface SqliteWorker {
 
 export type SqliteWorkerFactory = () => SqliteWorker
 
-function isRecord(value: unknown): value is Record {
-  if (!value || typeof value !== 'object') return false
-  return validateRecord(value as Record).valid
+function normalizeRecord(value: unknown): Record | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const validation = validateRecord(value as Record)
+  return validation.valid ? validation.value : undefined
 }
 
 export class LocalStorageRecordRepository implements RecordRepository {
@@ -62,7 +71,12 @@ export class LocalStorageRecordRepository implements RecordRepository {
     if (!serialized) return []
     try {
       const values: unknown = JSON.parse(serialized)
-      return Array.isArray(values) ? values.filter(isRecord) : []
+      return Array.isArray(values)
+        ? values.flatMap((value) => {
+          const record = normalizeRecord(value)
+          return record ? [record] : []
+        })
+        : []
     } catch {
       return []
     }
@@ -125,10 +139,28 @@ export class SqliteOpfsRecordRepository implements AsyncRecordRepository {
 
   async list(): Promise<Record[]> {
     const values: unknown = await this.execute('list')
-    if (!Array.isArray(values) || values.some((value) => !isRecord(value))) {
+    if (!Array.isArray(values)) {
       throw new Error('Browser SQLite returned invalid record data.')
     }
-    return values
+    const records: Record[] = []
+    for (const value of values) {
+      const record = normalizeRecord(value)
+      if (!record) {
+        throw new Error('Browser SQLite returned invalid record data.')
+      }
+      records.push(record)
+    }
+    return records
+  }
+
+  async listMotorcycles(): Promise<Motorcycle[]> {
+    const values: unknown = await this.execute('list-motorcycles')
+    if (!Array.isArray(values)) throw new Error('Browser SQLite returned invalid motorcycle data.')
+    try {
+      return values.map((value) => validateMotorcycle(value as Motorcycle))
+    } catch {
+      throw new Error('Browser SQLite returned invalid motorcycle data.')
+    }
   }
 
   async save(record: Record): Promise<void> {
@@ -139,6 +171,10 @@ export class SqliteOpfsRecordRepository implements AsyncRecordRepository {
     await this.execute('save', { record: validation.value })
   }
 
+  async saveMotorcycle(motorcycle: Motorcycle): Promise<void> {
+    await this.execute('save-motorcycle', { motorcycle: validateMotorcycle(motorcycle) })
+  }
+
   async remove(id: string): Promise<void> {
     await this.execute('remove', { recordId: id })
   }
@@ -146,19 +182,30 @@ export class SqliteOpfsRecordRepository implements AsyncRecordRepository {
   async importLegacy(records: readonly Record[]): Promise<void> {
     if (records.length === 0) return
     for (const record of records) {
-      if (!isRecord(record)) throw new Error('Cannot import invalid legacy record data.')
+      if (!normalizeRecord(record)) throw new Error('Cannot import invalid legacy record data.')
     }
     await this.execute('import', { records })
   }
 
-  async replaceAll(records: readonly Record[]): Promise<void> {
+  async replaceAll(
+    records: readonly Record[],
+    motorcycles: readonly Motorcycle[],
+  ): Promise<void> {
     for (const record of records) {
-      if (!isRecord(record)) throw new Error('Cannot import invalid record data.')
+      if (!normalizeRecord(record)) throw new Error('Cannot import invalid record data.')
     }
     if (new Set(records.map((record) => record.id)).size !== records.length) {
       throw new Error('Cannot import records with duplicate identifiers.')
     }
-    await this.execute('replace', { records })
+    const validatedMotorcycles = motorcycles.map(validateMotorcycle)
+    if (new Set(validatedMotorcycles.map((motorcycle) => motorcycle.id)).size !== motorcycles.length) {
+      throw new Error('Cannot import motorcycles with duplicate identifiers.')
+    }
+    const motorcycleIds = new Set(validatedMotorcycles.map((motorcycle) => motorcycle.id))
+    if (records.some((record) => record.motorcycleId && !motorcycleIds.has(record.motorcycleId))) {
+      throw new Error('Cannot import a record for an unknown motorcycle.')
+    }
+    await this.execute('replace', { records, motorcycles: validatedMotorcycles })
   }
 
   private async execute(
