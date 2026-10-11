@@ -23,6 +23,21 @@ Select **Monthly expenses** to view a responsive stacked chart of priced records
 - `npm test` — run domain and persistence tests
 - `npm run lint` — lint the source
 
+## Microsoft Clarity
+
+Clarity is initialized when a project ID is configured. Copy [`.env.example`](./.env.example)
+to `.env.local`, replace the placeholder with the project ID from Clarity **Settings >
+Overview**, and restart the Vite server:
+
+```sh
+VITE_CLARITY_PROJECT_ID=your-clarity-project-id
+```
+
+The project ID is a public client-side identifier, not a secret. When it is not configured,
+the app does not load Clarity. The Azure Static Web Apps deployment supplies the configured
+project ID during its production build. Configure Clarity's consent settings in the Clarity
+dashboard if your deployment requires consent before analytics collection.
+
 ## Azure Static Web Apps
 
 The repository contains a Free-tier Azure Static Web App definition in [`infra/main.bicep`](./infra/main.bicep).
